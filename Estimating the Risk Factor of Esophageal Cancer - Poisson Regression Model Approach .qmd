@@ -1,0 +1,216 @@
+---
+title: "Estimating the Risk Factors for Esophageal Cancer - Poisson Regression model approach"
+author: "Olakehinde Abdullahi.O"
+date: '2024-12-04'
+format:
+  html:
+    self-contained: true
+
+editor: visual
+bibliography: references.bib
+editor_options: 
+  chunk_output_type: console
+---
+
+## 1.0 Introduction
+
+Esophageal cancer is a significant global health concern, characterized by high mortality rates and a growing incidence worldwide [@bray2018b]. This study investigates the association between smoking, alcohol consumption, and esophageal cancer. Research has established that both smoking and alcohol consumption are major risk factors for esophageal cancer [@lundin2016], with the International Agency for Research on Cancer classifying alcohol as a Group 1 carcinogen.By utilizing a Poisson regression model, this study assesses the relationships between smoking, alcohol consumption, and esophageal cancer incidence, effectively quantifying the association of these risk factors with disease outcomes [@cameron2013][@hilbe2014]. Poisson regression provides a robust framework for analyzing count data, making it suitable for investigating cancer incidence rates in relation to established risk factors [@gardner1995].
+
+## 2.0 Description of Variables
+
+The [`esoph_df`](https://bit.ly/esoph-dataset) dataset from the [@MedDataSets]package was used to conduct the analysis , it contains data from a case-control study. The structure of the data includes:
+
+-   `agegp`: Age group of individuals (ordered factor)
+-   `alcgp`: Alcohol consumption group (ordered factor)
+-   `tobgp`: Tobacco consumption group (ordered factor)
+-   `ncases`: Number of cancer cases
+-   `ncontrols`: Number of controls
+
+The primary goal is to assess how age, alcohol, and tobacco consumption levels relate to cancer incidence.
+
+### Exploratory Data Analysis
+
+```{r}
+library(MedDataSets)                            #Load the "MedDataSets" library
+data(package = "MedDataSets")                   # list all datasets in the package 
+#View(esoph_df)                                  # Open the dataset in spreadsheet 
+str(esoph_df)                                   # View the structure of the datasets 
+install.packages(c("dplyr", "ggplot2", "psych",  "corrplot", "tidyr", "reshape2"))                         
+library(dplyr)        # Load the dplyr package for data manipulation
+library(ggplot2)      # Load the ggplot2 package for visualization
+library(psych)        # Load the psych package for descriptive statistics
+library(corrplot)     # Load the corrplot package for correlation visualizations
+library(tidyr)        # Load the tidyr package for data tidying
+library(reshape2)     # Load the reshape2 package for data reshaping
+
+df<- esoph_df        # the esoph_df as beeen renamed to df
+## Descriptive statistics 
+describe(df)
+summary(df)
+### Gwalkr package     
+install.packages("GWalkR")  # install the GwalkR package for Exploratory data analysis 
+library("GWalkR")
+GWalkR::gwalkr(esoph_df)  # Drag and drop the selected variables for data exploration 
+```
+
+[**Table 1**](Table%201) **: Summary Statistics of Esophageal Cancer Data**
+
+| Variables                      | N   | Mean  | SD    | Median | Trimmed | Mad  | Min | Max | Range | Skew | Kurtosis | SE   |
+|--------------------------------|-----|-------|-------|--------|---------|------|-----|-----|-------|------|----------|------|
+| Age Group (agegp)              | 88  | 3.39  | 1.65  | 3.00   | 3.36    | 1.48 | 1   | 6   | 5     | 0.05 | -1.22    | 0.18 |
+| Alcohol Group (alcgp)          | 88  | 2.45  | 1.12  | 2.00   | 2.44    | 1.48 | 1   | 4   | 3     | 0.06 | -1.39    | 0.12 |
+| Tobacco Group (tobgp)          | 88  | 2.41  | 1.12  | 2.00   | 2.39    | 1.48 | 1   | 4   | 3     | 0.13 | -1.37    | 0.22 |
+| Number of cases (ncases)       | 88  | 2.27  | 2.75  | 1.00   | 1.85    | 1.48 | 0   | 17  | 17    | 2.20 | 7.76     | 0.29 |
+| Number of controls (ncontrols) | 88  | 8.81  | 12.14 | 4.00   | 6.14    | 4.45 | 0   | 60  | 60    | 2.17 | 4.51     | 1.29 |
+| Total                          | 88  | 11.08 | 12.72 | 6.00   | 8.49    | 5.93 | 1   | 60  | 59    | 1.89 | 3.09     | 1.36 |
+| Proportion Cases               | 88  | 0.35  | 0.36  | 0.27   | 0.31    | 0.40 | 0   | 1   | 1     | 0.04 | -0.97    | 0.04 |
+
+**Interpreatation** : The [**Table 1**](Table%201) describes thesummary statistics of [esoph_df](https://bit.ly/esoph-dataset) . The age groups have a mean of 3.39 (1), suggesting a central tendency close to the middle of the scale, and minimal skew (0.05), indicating an even distribution across the range of 1 to 6. Alcohol (mean = 2.45) and tobacco (mean = 2.41) consumption levels are also centrally distributed with low skew (0.06 and 0.13, respectively), and they range from 1 to 4 (2), showing moderate usage across groups.
+
+The number of cases, with a mean of 2.27, varies significantly (range of 0 to 17), highlighting that some groups have few cases, while others experience much higher counts (3). In contrast, the number of controls is generally higher (mean = 8.81) but also has a wide range, up to 60 (4). This suggests that, across groups, control counts are notably larger than case counts.
+
+Total participants per group average around 11 but show significant variation, with some groups reaching as high as 60 (5). The proportion of cases is approximately 0.35, indicating that around 35% of participants across groups are cases, although this varies, as shown by the standard deviation of 0.36 (6).
+
+Skewness and kurtosis values indicate some groups are more varied in the number of cases and controls, while age, alcohol, and tobacco groups show more consistent distributions, pointing to a generally balanced sample.
+
+[Figure 1](file:///C:/Users/PC/Downloads/gw%20chart%201046.svg): Stacked **Barplot of [esoph_df](https://bit.ly/esoph-dataset) using** [@GWalkR]**Package**
+
+![](images/clipboard-2806009467.png)
+
+**Interpretation** :The [Figure 1](file:///C:/Users/PC/Downloads/gw%20chart%201046.svg) illustrates the distribution of esophageal cancer cases across age groups based on daily alcohol consumption levels. The highest concentration of cancer cases is observed in the 55–64 and 65–74 age groups, where alcohol consumption between 40–79 grams per day is most prevalent. Moderate to high alcohol intake (40 grams or more) appears to be associated with an increased number of cases, particularly in middle-aged and older groups. Minimal cases are seen in the youngest (25–34) and oldest (75+) age groups.
+
+[Figure 2](file:///C:/Users/PC/Downloads/gw%20chart%20475535.svg): **Scatter Plot of [esoph_df](https://bit.ly/esoph-dataset) Cases and Controls by Tobacco Consumption**
+
+![](images/clipboard-2959265945.png) **Interpretation**:The [Figure 2](https://c7f02839b42447faa619ba8d8b859563.app.posit.cloud/session/viewhtml1437a645577/index.html?viewer_pane=1&no&host=https%3A%2F%2Fc7f02839b42447faa619ba8d8b859563.app.posit.cloud) dispalys the realtionship betweeen the number of cases (ncases) and controls (ncontrols) across various tobacco consumption groups (tobgp). The majority of data points are clustered at lower values for both ncases and ncontrols, indicating that most subjects reported a low incidence of cases and controls. The "0–9g/day" tobacco consumption group has the highest spread in control values, reaching up to 60, while higher tobacco consumption groups (10-19g/day, 20-29g/day, and 30+g/day) generally show lower counts for both ncases and ncontrols. This trend suggests that lower tobacco consumption might correlate with a higher count of controls.
+
+[Figure 3](ile:///C:/Users/PC/Downloads/gw%20chart%20806522.svg) :**Distribution of Cases by Age Group and Tobacco Consumption Levels**
+
+![](images/clipboard-3646549207.png)
+
+**Interpretation** : The [Figure 3](ile:///C:/Users/PC/Downloads/gw%20chart%20806522.svg) indicates the distribution of cancer based on tobacco consumption levels ,Higher counts of cases are concentrated in older age groups, particularly in the 55-64 and 65-74 age ranges, where tobacco consumption levels vary. The 0-9g/day category has the highest case counts, especially among the older age groups. Tobacco consumption levels between 10-19g/day, 20-29g/day, and 30+ g/day are more evenly distributed across the middle-aged and older groups. There is greater variation (as seen by the spread of the boxes and whiskers) in the middle-aged categories, with outliers in cases appearing in the younger and older age brackets.
+
+### 3.0 Statistical Hyphothesis
+
+This chapter aims to test whether there is a suficient statistical evidence to accept or reject that there's an association betweeen alcohol consumption levels daily and the number of cases of esophageal cancer.
+
+Ho: There is no association between alcohol consumption levels and the cases of esophageal cancer .
+
+H1: There is an association between alcohol consumption levels and the cases of esophageal cancer.
+
+```{r}
+#Chi-Square Test of Association
+
+Contigency_table <- table(df$alcgp, df$ncases > 0)    #Create a 2 x k contigency table of alcholol consumption and the number of cases 
+
+print(Contigency_table)                  # glance the contigency table 
+chisq.test(Contigency_table)            #Chisquare test results .
+
+```
+
+[Table 2](Table%202): **Contigency Table of Alcohol Consumption levels and the cases of cancer**
+
+| Alcohol Consumption Levels/day |
+|--------------------------------|
+
+| Presence/Absence of Cancer | 0-39g | 40-79g | 80-119g | 120+ |
+|----------------------------|-------|--------|---------|------|
+| Absent                     | 11    | 7      | 7       | 4    |
+| Present                    | 12    | 16     | 14      | 17   |
+
+**data**: Contigency_table X-squared = 4.2079, df = 3, p-value = 0.2399
+
+**Interpretation** :The p-value 0.2399 is greater than the significant level (0.05), therefore we do not have enough evident to reject the null hypothesis.
+
+**Decision**: We conclude that there is no statistically significant association between alcohol consumption levels and the presence of cancer.
+
+#### 4.0 Statistical Model
+
+**Poisson Regession Model :** This study utilizes the poisson regression model to eamine the relationship between age, alcohol, and tobacco consumption levels on cancer incidence. This approach aligns with the research conducted by Mohebi et al (2014) , who also applied poisson regression model to analyze the spatial and risk distributions of cancer.
+
+**Methodology:** The Poisson model equation is given below :
+
+$$
+\lambda_i = \exp(\beta_0 + \beta_1 \text{agegp}_i + \beta_2 \text{alcgp}_i + \beta_3 \text{tobgp}_i) 
+$$
+
+where :
+
+-   $\lambda_i$ is the expected count for observation $i$.
+
+-   $\beta_0$ is the intercept term .
+
+-   $\beta_1$, $\beta_2$,and, $\beta_3$ are coefficients representing the effects ( $\text{agegp}_i$),($\text{alcgp}_i$) and ($\text{tobgp}_i$) respectively
+
+```{r}
+install.packages(c("broom", "performance")) # install the broom and performance package for the analysis 
+library(broom)       # load in the broom package for model outputs summmary 
+library(performance)       #load in the performance package to evalaute model performance  
+#Formula for the poisson regression model 
+poisson_model <- glm(ncases ~ agegp + alcgp + tobgp, 
+                     data = esoph_df, 
+                     family = poisson(link = "log"))
+summary(poisson_model) #output of the model 
+## Model Diagnostic 
+plot(poisson_model)   #Posiion model curve 
+performance::model_performance(poisson_model) #Evluating the model performance 
+
+```
+
+### Output:
+
+#### Poisson Regression Model Coefficients
+
+| Parameter   | Estimate | Std. Error | z value | P-value  |
+|-------------|----------|------------|---------|----------|
+| (Intercept) | -0.0081  | 0.1899     | -0.043  | 0.965946 |
+| agegp.L     | 2.3511   | 0.6340     | 3.709   | 0.000208 |
+| agegp.Q     | -2.7135  | 0.5736     | -4.731  | 2.24e-06 |
+| agegp.C     | -0.0919  | 0.4336     | -0.212  | 0.832172 |
+| agegp\^4    | 0.0360   | 0.2918     | 0.123   | 0.901733 |
+| agegp\^5    | -0.0911  | 0.1760     | -0.517  | 0.604862 |
+| alcgp.L     | 0.2181   | 0.1649     | 1.322   | 0.186039 |
+| alcgp.Q     | -0.5533  | 0.1498     | -3.693  | 0.000222 |
+| alcgp.C     | 0.3779   | 0.1332     | 2.838   | 0.004542 |
+| tobgp.L     | -0.6206  | 0.1512     | -4.105  | 4.04e-05 |
+| tobgp.Q     | 0.1761   | 0.1525     | 1.155   | 0.248168 |
+| tobgp.C     | 0.1760   | 0.1540     | 1.142   | 0.253358 |
+
+#### Deviance Statistics
+
+| Statistic         | Value   |
+|-------------------|---------|
+| Null deviance     | 262.926 |
+| Residual deviance | 78.395  |
+
+#### Model Statistics
+
+| Statistic            | Value |
+|----------------------|-------|
+| AIC                  | 272.1 |
+| Number of Iterations | 6     |
+
+**Interpretation** :The Poisson regression model reveals that the intercept term is not significant (p = 0.965), indicating no baseline risk difference. Age shows a significant increase in cancer risk with the linear term (β = 2.351, p \< 0.001), but the quadratic term (β = -2.713, p \< 0.001) indicates a non-linear relationship, where the risk initially rises and then decreases. Alcohol consumption's quadratic (β = -0.553, p \< 0.001) and cubic (β = 0.378, p = 0.0045) terms suggest complex effects on cancer risk. Tobacco consumption shows an unexpected protective effect, with the linear term (β = -0.621, p \< 0.001) significantly reducing risk. The model fits better than the baseline, with a residual deviance of 78.395 and AIC of 272.1.
+
+**Model Diagnostic**
+
+[Figure 4](images/clipboard-614131469.png)**: Poisson Model Curve**
+
+![](images/clipboard-614131469.png)
+
+**Interpretation** :The [Figure 4](images/clipboard-614131469.png)**: i**ndicates the models residuals fits well and follows exponential distributions .
+
+**Table 3:Model Performance**
+
+| AIC     | BIC     | Nagelkerke's R² | RMSE  | Sigma | Score_log | Score \_spherical |
+|---------|---------|-----------------|-------|-------|-----------|-------------------|
+| 272.095 | 276.255 | 0.924           | 1.525 | 1.000 | -1.410    | 0.082             |
+
+**Interpretation** :The model evaluation shows a relatively good fit with an AIC of 272.095 and BIC of 276.255. Nagelkerke's R² value of 0.924 indicates a high explanatory power. The RMSE of 1.525 suggests moderate predictive accuracy, while the Sigma of 1.000 and Score_log of -1.410 further support model validity.
+
+##### **5.0 Discussion**
+
+The analysis reveals the patterns in esophageal cancer and its risk factors . Notably , age is a significant predictor, with a nonlinear increase in risk until later old ages , supporting established age-related cancer trends [@prospectivestudiescollaboration2009].Alcohol consumption exhibited complex, nonlinear effects on cancer risk, aligning with studies that show cancer susceptibility varies across consumption levels [@chakraborty2019].The Poisson regression model demonstrated strong explanatory power (Nagelkerke R² = 0.924) and moderate predictive accuracy (RMSE = 1.525), suggesting a reliable fit for the observed data trends [@modelse2004],Overall, the results highlights the impact of age and alcohol consumption on esophageal cancer, and there's a need for further research on tobacco's role in the cause of esophageal cancer .
+
+**Conclusion**
+
+The analysis results indicates that age and daily alcohol consumptions are significant factors of predicting esophageal cancer , while tobaccos use appears to have minimal risk .
